@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import pandas as pd
+import argparse
 
 
 def find_num_pages(element):
@@ -64,13 +65,12 @@ def find_review_section(element):
     return user_names, user_dates, user_locations, user_reviews, user_ratings
 
 
-def launchBrower():
+def launchBrower(url):
     options = Options()
     options.headless = False
     # options.add_argument('window-size=1920x1080')
-    options.add_experimental_option("detach", True)
 
-    website = "https://www.yelp.com/biz/san-dong-noodle-house-%E5%B1%B1%E6%9D%B1%E9%BA%B5%E9%A4%A8-houston"
+    website = url
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver.get(website)
     driver.maximize_window()  # Don't work well with headless = True
@@ -78,12 +78,22 @@ def launchBrower():
     return driver
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Process a string.")
+    parser.add_argument("inp", type=str, help="Input string to be processed")
+    return parser.parse_args()
+
+
 def main():
-    driver = launchBrower()
+    args = parse_arguments()
+    input_string = args.inp
+    driver = launchBrower(input_string)
+
+    restaurant_name = input_string.split("/")[-1]
 
     time.sleep(5)
 
-    num_of_pages = find_num_pages(driver)
+    last_page = find_num_pages(driver)
 
     cur_page = 1
 
@@ -93,8 +103,8 @@ def main():
     user_reviews = []
     user_ratings = []
 
-    while cur_page <= 2:
-        time.sleep((5))
+    while cur_page <= last_page:
+        time.sleep(3)
 
         container = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, '//div[contains(@class, "biz-details-page-container-outer__09f24__pZBzx css-1qn0b6x")]')))
@@ -118,7 +128,9 @@ def main():
 
     df_books = pd.DataFrame(
         {'user': user_names, 'location': user_locations, 'date': user_dates, 'rating': user_ratings, 'review': user_reviews})
-    df_books.to_json('yelp_review.json', orient='records')
+    df_books.to_json(f'{restaurant_name}_yelp_review.json', orient='records')
+
+    driver.quit()
 
 
 if __name__ == '__main__':
